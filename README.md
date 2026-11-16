@@ -1,59 +1,155 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🚢 CargoTrace: Global Shipment Visibility & Tracking Platform
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![Laravel](https://img.shields.io/badge/Laravel-12.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0%2B-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://mysql.com)
+[![Automated Tests](https://img.shields.io/badge/Tests-14%20Passed%20(100%25)-success?style=for-the-badge&logo=githubactions&logoColor=white)]()
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-## About Laravel
+**CargoTrace** is an enterprise-grade maritime cargo tracking and visibility platform engineered for cross-border container shipping logistics. Designed to fulfill the Final Project (UAS) requirements for **Web Programming 2**, the system delivers real-time container journey visualization, automated delay detection (SLA engine), external meteorological satellite telemetry, and a secure RESTful API with token-based authorization.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🌟 Key Capabilities
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. **Interactive Maritime Route Visualization (Leaflet.js + OpenStreetMap)**
+   - Zero-dependency on paid map billing (no Google Maps API fees or credit cards required).
+   - Dynamic polyline route generation linking Port of Origin $\rightarrow$ Sea Transit Checkpoints $\rightarrow$ Port of Destination.
+   - Interactive waypoint markers with coordinate popups and live marine weather conditions.
 
-## Learning Laravel
+2. **Deterministic Delay & SLA Engine (Slide 08)**
+   - Mathematical difference calculation between contractual Expected Arrival (SLA) and dynamic Estimated Arrival Time (ETA).
+   - Configurable severity classifications:
+     - $\le 24\text{ hours} \rightarrow \mathbf{LOW}$
+     - $24\text{--}72\text{ hours} \rightarrow \mathbf{MEDIUM}$ (e.g. tropical storm rerouting)
+     - $> 72\text{ hours} \rightarrow \mathbf{HIGH}$ (critical operational anomaly)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+3. **Strict State Machine Lifecycle (Slide 06)**
+   - Whitelist-enforced state transitions (`CREATED` $\rightarrow$ `BOOKED` $\rightarrow$ `PICKED_UP` $\rightarrow$ `IN_TRANSIT` $\rightarrow$ `DELIVERED`).
+   - Prevents illegal status jumping and locks terminal states (`DELIVERED` & `CANCELLED`) permanently.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+4. **Live Satellite Weather Telemetry (Slide 09)**
+   - Real-time meteorological integration powered by the free Open-Meteo Satellite API.
+   - Graceful offline fallback mechanism ensuring resilience against internet timeouts during demonstrations.
 
-## Laravel Sponsors
+5. **RESTful API v1 with Sanctum & Strict Authorization (Slide 13)**
+   - Public tracking endpoints for third-party consumers without credentials.
+   - Protected endpoints guarded by Bearer tokens and role capabilities.
+   - Strict tenant-level isolation: Customers are forbidden (403 Forbidden) from viewing or altering competitor shipments.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## 🏛️ Architecture & Clean Code Design
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+The system enforces a **Service Layer Architecture**, keeping controllers thin and isolating domain business logic into dedicated services:
 
-## Contributing
+```
+[Browser / REST Client]
+          │
+          ▼
+   [HTTP Routes] ────────► Web & API Sanctum Middleware
+          │
+          ▼
+   [Controllers] ────────► Request Validation & JSON/Blade Response
+          │
+          ▼
+  [Service Layer]
+   ├── ShipmentService   (Tracking number generator & State Machine guard)
+   ├── TrackingService   (Append-only chronological event logging)
+   ├── EtaService        (Deterministic delay & severity calculator)
+   ├── ExceptionService  (Incident workflow & automated delay adjustment)
+   └── WeatherService    (Open-Meteo satellite integration with caching)
+          │
+          ▼
+  [Eloquent Models] ─────► Relational constraints & Mass-assignment guards
+          │
+          ▼
+   [MySQL Database]
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## 👥 Pre-Configured Demo Accounts
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+All seeded accounts share the default password: **`password123`**
 
-## Security Vulnerabilities
+| Role | Email | Organization | Permissions |
+| :--- | :--- | :--- | :--- |
+| **Administrator** | `admin@cargotrace.com` | CargoTrace Global HQ | Full system oversight, audit trails, and configuration management |
+| **Terminal Operator** | `operator@cargotrace.com` | JICT Tanjung Priok | Field checkpoint logging, exception reporting, and status updates |
+| **Customer 1** | `customer@cargotrace.com` | PT Nusantara Agri Ekspor | Export shipment monitoring, manifest inspection, delay alerts |
+| **Customer 2** | `customer2@cargotrace.com` | Asia Pacific Semiconductor Ltd | Independent account used to verify 403 authorization boundary tests |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 🚢 Seeded Maritime Reference Scenarios
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+| Tracking Number | Carrier | Route | Commodity (HS Code) | Scenario / Operational State |
+| :--- | :--- | :--- | :--- | :--- |
+| **`CRG-2026-0001`** | Samudera Indonesia | Jakarta $\rightarrow$ Singapore | Gayo Arabica Coffee (`0901.11`) | **ON-TIME & IN-TRANSIT**: Navigating Bangka Strait on schedule. |
+| **`CRG-2026-0002`** | Maersk Line | Singapore $\rightarrow$ Rotterdam | Microcontrollers (`8542.31`) | **DELAYED BY WEATHER (+48h)**: Cyclone in Indian Ocean; high severity alert. |
+| **`CRG-2026-0003`** | Evergreen Marine | Surabaya $\rightarrow$ Shanghai | Frozen Vanilla Beans (`0905.10`) | **CUSTOMS HOLD (+24h)**: Reefer container undergoing phytosanitary re-check. |
+| **`CRG-2026-0004`** | MSC Line | Shanghai $\rightarrow$ Jakarta | Solar PV Modules (`8541.43`) | **DELIVERED**: Successfully discharged at Tanjung Priok with signed proof. |
+
+---
+
+## 🚀 Quick Start Installation
+
+### 1. Requirements
+- PHP 8.2 or higher
+- Composer
+- MySQL 8.0 (XAMPP / native)
+
+### 2. Setup Database & Seed Reference Data
+```powershell
+# Navigate to the repository
+cd C:\xampp\htdocs\cargotrace
+
+# Run migrations and seed realistic maritime data
+php artisan migrate:fresh --seed
+```
+
+### 3. Launch Development Server
+```powershell
+php artisan serve
+```
+Open your browser at: **`http://127.0.0.1:8000`**
+
+---
+
+## 🧪 Automated Testing Suite
+
+The application includes comprehensive automated feature tests covering all requirements from Slides 06, 08, 13, and 16.
+
+```powershell
+php artisan test
+```
+
+### Test Coverage Highlights:
+- ✅ `ShipmentAuthorizationTest`: Customer isolation, 403 Forbidden enforcement, and operator privileges.
+- ✅ `ShipmentLifecycleTest`: State Machine sequential progression and rejection of illegal status skips.
+- ✅ `EtaDelayTest`: Mathematical accuracy of delay durations and threshold classifications (LOW, MEDIUM, HIGH).
+
+---
+
+## 📡 REST API v1 Endpoints (Slide 13)
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/login` | Public | Authenticates credentials and returns a Bearer token |
+| `GET` | `/api/v1/public/track/{tracking_number}` | Public | Public shipment telemetry and Open-Meteo satellite weather |
+| `GET` | `/api/v1/auth/me` | Protected | Retrieves current authenticated profile |
+| `POST` | `/api/v1/auth/logout` | Protected | Revokes active Sanctum API token |
+| `GET` | `/api/v1/shipments` | Protected | Paginated list of shipments (strictly scoped by customer ownership) |
+| `GET` | `/api/v1/shipments/{tracking_number}` | Protected | Complete container manifest, timeline, and exception audit logs |
+| `POST` | `/api/v1/shipments/{tracking_number}/checkpoints` | Operator/Admin | Records a new journey checkpoint (auto-fetches satellite weather) |
+| `POST` | `/api/v1/shipments/{tracking_number}/exceptions` | Operator/Admin | Logs operational disruption and recalculates ETA dynamically |
+
+---
+
+## ⚖️ Academic License & Compliance
+
+Developed for the **Web Programming 2 Final Examination (UAS)**. Designed strictly under the sanctioned curriculum boundaries:
+- Individual assignment compliance (group scenarios skipped).
+- No paid cloud billing APIs used (Free OpenStreetMap and Open-Meteo utilized).
+- Standardized PSR-12 and Clean Architecture compliance.
