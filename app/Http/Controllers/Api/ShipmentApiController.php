@@ -31,24 +31,24 @@ class ShipmentApiController extends Controller
 
     /**
      * GET /api/v1/shipments
-     * Daftar seluruh kargo dengan filter status dan pembatasan hak akses (Role Scoping)
+     * Slide 13: Customer hanya dapat melihat shipment miliknya sendiri
      */
     public function index(Request $request)
     {
         $user = $request->user();
         $query = Shipment::with(['carrier', 'origin', 'destination']);
 
-        // Jika Customer, batasi hanya data kargo miliknya saja
+        // OTORISASI: Customer hanya melihat kargo miliknya sendiri (Data Isolation)
         if ($user && $user->isCustomer()) {
             $query->where('customer_id', $user->id);
         }
 
-        // Filter berdasarkan status jika diminta
+        // Filter status jika diminta
         if ($request->filled('status')) {
             $query->where('current_status', strtoupper($request->status));
         }
 
-        // Filter berdasarkan kondisi keterlambatan (ON_TIME / DELAYED)
+        // Filter delay_status (ON_TIME / DELAYED)
         if ($request->filled('delay_status')) {
             $query->where('delay_status', strtoupper($request->delay_status));
         }
@@ -64,9 +64,9 @@ class ShipmentApiController extends Controller
 
     /**
      * GET /api/v1/shipments/{tracking_number}
-     * Rincian lengkap kargo, rute, barang kontainer, dan timeline
+     * Slide 13: Otorisasi ketat - Customer tidak boleh melihat kargo milik orang lain (403 Forbidden)
      */
-    public function show(string $tracking_number)
+    public function show(Request $request, string $tracking_number)
     {
         $trackingNumber = strtoupper(trim($tracking_number));
 
@@ -88,6 +88,15 @@ class ShipmentApiController extends Controller
             ], 404);
         }
 
+        // OTORISASI SLIDE 13: Tolak jika Customer mencoba mengintip kargo milik Customer lain!
+        $user = $request->user();
+        if ($user && $user->isCustomer() && $shipment->customer_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (403 Forbidden). Anda tidak memiliki izin untuk mengakses data kargo milik perusahaan lain.',
+            ], 403);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Detail kargo berhasil diambil.',
@@ -97,7 +106,7 @@ class ShipmentApiController extends Controller
 
     /**
      * GET /api/v1/public/track/{tracking_number}
-     * Endpoint terbuka untuk pelacakan kargo tanpa perlu token
+     * Endpoint terbuka untuk pelacakan publik (tanpa data sensitif kepemilikan internal)
      */
     public function trackPublic(string $tracking_number)
     {
@@ -121,7 +130,6 @@ class ShipmentApiController extends Controller
             ], 404);
         }
 
-        // Ambil data cuaca di lokasi terakhir jika tersedia
         $latestEvent = $shipment->trackingEvents->last();
         $weather = null;
         if ($latestEvent && $latestEvent->latitude && $latestEvent->longitude) {
@@ -132,7 +140,7 @@ class ShipmentApiController extends Controller
             'success' => true,
             'message' => 'Pelacakan kargo berhasil dimuat.',
             'data'    => [
-                'shipment'        => $shipment,
+                'shipment'          => $shipment,
                 'latest_checkpoint' => $latestEvent,
                 'current_weather'   => $weather,
             ],
@@ -141,10 +149,20 @@ class ShipmentApiController extends Controller
 
     /**
      * POST /api/v1/shipments/{tracking_number}/checkpoints
-     * Tambah pos kejadian/checkpoint baru oleh Operator Pelabuhan (Slide 07)
+     * Slide 13: Hanya Operator atau Admin yang boleh menambah checkpoint pos kargo!
      */
     public function storeCheckpoint(Request $request, string $tracking_number)
     {
+        $user = $request->user();
+
+        // OTORISASI SLIDE 13: Customer DILARANG mengubah pos kargo!
+        if (! $user->isOperator() && ! $user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (403 Forbidden). Hanya Operator Terminal Pelabuhan atau Admin yang berhak mencatat checkpoint kargo.',
+            ], 403);
+        }
+
         $trackingNumber = strtoupper(trim($tracking_number));
         $shipment = Shipment::where('tracking_number', $trackingNumber)->firstOrFail();
 
@@ -160,7 +178,7 @@ class ShipmentApiController extends Controller
             'weather_temp_c'    => 'nullable|numeric',
         ]);
 
-        $checkpoint = $this->trackingService->recordCheckpoint($shipment, $validated, $request->user()->id);
+        $checkpoint = $this->trackingService->recordCheckpoint($shipment, $validated, $user->id);
 
         return response()->json([
             'success' => true,
@@ -171,10 +189,20 @@ class ShipmentApiController extends Controller
 
     /**
      * POST /api/v1/shipments/{tracking_number}/exceptions
-     * Laporkan kendala kargo (Badai, Karantina, Kemacetan Pelabuhan)
+     * Slide 13: Hanya Operator atau Admin yang boleh melaporkan kendala kargo!
      */
     public function storeException(Request $request, string $tracking_number)
     {
+        $user = $request->user();
+
+        // OTORISASI SLIDE 13: Customer DILARANG memicu delay/gangguan kargo!
+        if (! $user->isOperator() && ! $user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak (403 Forbidden). Hanya Operator atau Admin yang berhak melaporkan anomali kargo.',
+            ], 403);
+        }
+
         $trackingNumber = strtoupper(trim($tracking_number));
         $shipment = Shipment::where('tracking_number', $trackingNumber)->firstOrFail();
 
@@ -186,7 +214,7 @@ class ShipmentApiController extends Controller
             'additional_delay_hours' => 'nullable|integer|min:1',
         ]);
 
-        $exception = $this->exceptionService->reportException($shipment, $validated, $request->user()->id);
+        $exception = $this->exceptionService->reportException($shipment, $validated, $user->id);
 
         return response()->json([
             'success' => true,
