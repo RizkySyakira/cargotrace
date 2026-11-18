@@ -70,15 +70,40 @@
                     </a>
                 </div>
 
-                <!-- Navigation Links -->
+                <!-- Navigation Links & User Authentication Status -->
                 <nav class="flex items-center space-x-2 sm:space-x-4">
                     <a href="{{ url('/') }}" class="text-sm font-medium px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition">
                         Lacak Kargo
                     </a>
-                    
-                    <a href="{{ url('/api/documentation') }}" target="_blank" class="hidden sm:inline-flex text-xs font-semibold px-2.5 py-1.5 rounded-md bg-slate-800 text-slate-400 hover:text-sky-300 border border-slate-700 transition">
-                        REST API v1
-                    </a>
+
+                    @auth
+                        <!-- JIKA SUDAH LOGIN -->
+                        <a href="{{ route('dashboard') }}" class="text-sm font-semibold px-3 py-2 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 border border-sky-400/30 transition">
+                            Dashboard
+                        </a>
+
+                        <div class="hidden sm:flex items-center space-x-2 pl-2 border-l border-slate-700 text-xs">
+                            <span class="text-slate-300 font-medium">{{ Auth::user()->name }}</span>
+                            <span class="uppercase font-extrabold text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-sky-400 border border-slate-700">
+                                {{ Auth::user()->role }}
+                            </span>
+                        </div>
+
+                        <form action="{{ route('logout') }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition">
+                                Keluar
+                            </button>
+                        </form>
+                    @else
+                        <!-- JIKA BELUM LOGIN (GUEST) -->
+                        <a href="{{ route('login') }}" class="inline-flex items-center space-x-1.5 text-xs font-bold px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-slate-950 shadow-md shadow-sky-500/20 transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                            </svg>
+                            <span>Masuk / Login</span>
+                        </a>
+                    @endauth
                 </nav>
 
             </div>
@@ -127,7 +152,7 @@
     <!-- Leaflet.js JS untuk Peta Interaktif -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    <!-- Slot khusus script per halaman (misal inisialisasi koordinat Leaflet) -->
+    <!-- Slot khusus script per halaman -->
     @stack('scripts')
 
 </body>
