@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 class DashboardController extends Controller
 {
     /**
-     * Tampilkan Dashboard Internal (Slide 05 & 10)
+     * Tampilkan Dashboard Internal (Slide 05, 10, & 14)
      */
     public function index(Request $request)
     {
@@ -46,7 +46,7 @@ class DashboardController extends Controller
 
         $shipments = $query->orderBy('id', 'desc')->paginate(10);
 
-        // Hitung Metrik Statistik Sesuai Hak Akses
+        // Hitung Metrik Statistik Sesuai Hak Akses (Slide 10)
         $metricsBase = $user->isCustomer() ? Shipment::where('customer_id', $user->id) : Shipment::query();
 
         $stats = [
@@ -59,8 +59,33 @@ class DashboardController extends Controller
                 : ShipmentException::where('status', '!=', 'RESOLVED')->count(),
         ];
 
+        // Rata-rata persentase keterlambatan (Average Delay Rate)
+        $avgDelayRate = $stats['total'] > 0 ? round(($stats['delayed'] / $stats['total']) * 100, 1) : 0;
+
         $carriers = Carrier::where('is_active', true)->get();
 
-        return view('dashboard.index', compact('shipments', 'stats', 'carriers', 'user'));
+        // Data Donut Chart: Distribusi Keterlambatan per Carrier
+        $carrierStats = [];
+        foreach ($carriers as $carrier) {
+            $carrierTotal = Shipment::where('carrier_id', $carrier->id)->count();
+            $carrierDelayed = Shipment::where('carrier_id', $carrier->id)->where('delay_status', 'DELAYED')->count();
+            if ($carrierTotal > 0) {
+                $carrierStats[] = [
+                    'name'    => $carrier->name,
+                    'code'    => $carrier->code,
+                    'total'   => $carrierTotal,
+                    'delayed' => $carrierDelayed,
+                    'pct'     => $carrierTotal > 0 ? round(($carrierDelayed / $carrierTotal) * 100) : 0,
+                ];
+            }
+        }
+
+        // Data Mini Peta Leaflet di Dashboard
+        $mapShipments = Shipment::with(['origin', 'destination', 'trackingEvents'])
+            ->whereIn('current_status', ['IN_TRANSIT', 'DELIVERED'])
+            ->take(5)
+            ->get();
+
+        return view('dashboard.index', compact('shipments', 'stats', 'carriers', 'user', 'avgDelayRate', 'carrierStats', 'mapShipments'));
     }
 }

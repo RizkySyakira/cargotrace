@@ -37,6 +37,9 @@
     <!-- Leaflet.js CSS untuk Peta Interaktif -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
+    <!-- Chart.js CDN untuk Grafik Visual (Slide 14) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         /* Penyesuaian layer z-index Leaflet agar tidak menimpa dropdown navbar */
         .leaflet-pane { z-index: 10 !important; }
