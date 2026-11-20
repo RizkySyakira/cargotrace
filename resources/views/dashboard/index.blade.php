@@ -21,6 +21,15 @@
         </div>
 
         <div class="flex items-center space-x-3">
+            @if($user->isAdmin() || $user->isOperator())
+                <a href="{{ route('shipments.create') }}" class="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-slate-950 font-bold text-xs shadow-md shadow-sky-500/20 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>+ Tambah Kargo Baru</span>
+                </a>
+            @endif
+
             <span class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold tracking-wider uppercase 
                 {{ $user->isAdmin() ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' : ($user->isOperator() ? 'bg-sky-100 text-sky-800 border border-sky-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200') }}">
                 Hak Akses: {{ $user->role }}

@@ -66,6 +66,43 @@
         </div>
     </div>
 
+    <!-- PANEL OPERATOR: KONTROL STATUS STATE MACHINE (SLIDE 06) -->
+    @auth
+        @if(Auth::user()->isAdmin() || Auth::user()->isOperator())
+            @php
+                $allowedNextStatuses = App\Models\Shipment::STATUS_FLOW[$shipment->current_status] ?? [];
+            @endphp
+            @if(!empty($allowedNextStatuses))
+                <div class="mb-6 bg-slate-900 text-white p-4 rounded-2xl shadow-lg border border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 border border-sky-400/30 flex items-center justify-center font-bold">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase tracking-widest text-sky-400">Panel Operator &bull; State Machine Control (Slide 06)</span>
+                            <p class="text-xs text-slate-300">Status saat ini: <strong class="text-white">{{ $shipment->current_status }}</strong></p>
+                        </div>
+                    </div>
+
+                    <form action="{{ route('shipments.status', $shipment->tracking_number) }}" method="POST" class="flex items-center space-x-2">
+                        @csrf
+                        <select name="status" required class="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                            <option value="">-- Pilih Transisi Status Sah --</option>
+                            @foreach($allowedNextStatuses as $nextStatus)
+                                <option value="{{ $nextStatus }}">Ubah ke {{ $nextStatus }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="px-3.5 py-1.5 bg-sky-500 hover:bg-sky-600 text-slate-950 font-bold text-xs rounded-xl shadow-md transition">
+                            Terapkan Transisi
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endif
+    @endauth
+
     <!-- BANNER PERINGATAN INSIDEN / EXCEPTIONS JIKA ADA -->
     @if ($shipment->exceptions->where('status', '!=', 'RESOLVED')->count() > 0)
         @foreach ($shipment->exceptions->where('status', '!=', 'RESOLVED') as $exc)
